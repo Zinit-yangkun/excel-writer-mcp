@@ -1,0 +1,50 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run",
+      "type": "shell",
+      "command": "make run",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Test",
+      "type": "shell",
+      "command": "make test",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Test (Coverage)",
+      "type": "shell",
+      "command": "make test-cov",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Clean",
+      "type": "shell",
+      "command": "make clean",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "make build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Publish",
+      "type": "shell",
+      "command": "make publish",
+      "group": "none",
+      "problemMatcher": []
+    }
+  ]
+}

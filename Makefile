@@ -13,4 +13,7 @@ build: clean
 publish: build
 	uv publish
 
-.PHONY: test test-cov clean build publish
+run:
+	uv run excel-writer-mcp
+
+.PHONY: test test-cov clean build publish run
