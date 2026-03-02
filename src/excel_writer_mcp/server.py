@@ -406,7 +406,16 @@ def format_cells(
         side = Side(style=border_style)
         border = Border(left=side, right=side, top=side, bottom=side)
 
-    for row in ws[range_string]:
+    target = ws[range_string]
+    if hasattr(target, "value"):
+        # Single cell (e.g. "A1")
+        rows = ((target,),)
+    elif isinstance(target, tuple) and target and not isinstance(target[0], tuple):
+        # Single row (e.g. "A1:C1")
+        rows = (target,)
+    else:
+        rows = target
+    for row in rows:
         cells = row if isinstance(row, tuple) else (row,)
         for cell in cells:
             if font_kwargs:
