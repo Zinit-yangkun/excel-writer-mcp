@@ -20,11 +20,7 @@ src/excel_writer_mcp/
 ## Running
 
 ```bash
-# stdio mode (for MCP clients)
-python -m excel_writer_mcp
-
-# or via entry point
-excel-writer-mcp
+uvx excel-writer-mcp
 ```
 
 ## MCP Client Configuration
@@ -33,13 +29,8 @@ excel-writer-mcp
 {
   "mcpServers": {
     "excel-writer-mcp": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/path/to/excel-writer-mcp",
-        "run",
-        "excel-writer-mcp"
-      ]
+      "command": "uvx",
+      "args": ["excel-writer-mcp"]
     }
   }
 }
