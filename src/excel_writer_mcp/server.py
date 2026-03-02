@@ -517,7 +517,7 @@ def write_csv(
     """
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     mode = "a" if append else "w"
-    with open(path, mode, newline="", encoding="utf-8") as f:
+    with open(path, mode, newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
         writer.writerows(data)
     action = "Appended" if append else "Wrote"
@@ -556,7 +556,7 @@ def read_csv(
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"File not found: {path}")
-    with open(path, newline="", encoding="utf-8") as f:
+    with open(path, newline="", encoding="utf-8-sig") as f:
         reader = csv.reader(f)
         all_rows = [[_convert_value(cell) for cell in row] for row in reader]
     total = len(all_rows)
