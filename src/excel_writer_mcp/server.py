@@ -1,5 +1,6 @@
 """Excel Writer MCP Server - supports .xlsx and .xlsm (with VBA macro preservation)."""
 
+import csv
 import logging
 import shutil
 from pathlib import Path
@@ -498,3 +499,78 @@ def create_chart(
     _save_workbook(wb, path)
     wb.close()
     return f"Created {chart_type} chart at {target_cell} in '{ws.title}' ({path})"
+
+
+@mcp.tool()
+def write_csv(
+    path: str,
+    data: list[list[Any]],
+    append: bool = False,
+) -> str:
+    """Write a 2D array of data to a CSV file. Useful for saving intermediate
+    data that can be restored later if the conversation is interrupted.
+
+    Args:
+        path: File path for the CSV file.
+        data: 2D list of values, e.g. [["Name","Age"],["Alice",30]].
+        append: If true, append rows to the existing file instead of overwriting.
+    """
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    mode = "a" if append else "w"
+    with open(path, mode, newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerows(data)
+    action = "Appended" if append else "Wrote"
+    return f"{action} {len(data)} rows to {path}"
+
+
+def _convert_value(s: str) -> Any:
+    """Convert a CSV string value to int, float, or None where appropriate."""
+    if s == "":
+        return None
+    try:
+        return int(s)
+    except ValueError:
+        pass
+    try:
+        return float(s)
+    except ValueError:
+        pass
+    return s
+
+
+@mcp.tool()
+def read_csv(
+    path: str,
+    start_row: int = 1,
+    max_rows: int = 100,
+) -> dict[str, Any]:
+    """Read data from a CSV file with automatic chunking. Call repeatedly
+    with start_row=next_start_row to paginate through large files.
+
+    Args:
+        path: Path to the CSV file.
+        start_row: First row to return (1-based, inclusive). Defaults to 1.
+        max_rows: Maximum number of rows to return per call. Defaults to 100.
+    """
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        all_rows = [[_convert_value(cell) for cell in row] for row in reader]
+    total = len(all_rows)
+    s = max(start_row - 1, 0)
+    e = min(s + max_rows, total)
+    chunk = all_rows[s:e]
+    has_more = e < total
+    result: dict[str, Any] = {
+        "data": chunk,
+        "total_rows": total,
+        "returned_rows": len(chunk),
+        "start_row": s + 1,
+        "has_more": has_more,
+    }
+    if has_more:
+        result["next_start_row"] = e + 1
+    return result

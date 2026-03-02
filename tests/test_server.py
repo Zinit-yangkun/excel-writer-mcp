@@ -25,7 +25,9 @@ merge_cells = _srv.merge_cells.fn
 modify_rows_columns = _srv.modify_rows_columns.fn
 read_data = _srv.read_data.fn
 write_cells = _srv.write_cells.fn
+write_csv = _srv.write_csv.fn
 write_data = _srv.write_data.fn
+read_csv = _srv.read_csv.fn
 
 
 @pytest.fixture()
@@ -513,3 +515,86 @@ class TestCreateChart:
     def test_chart_custom_size(self, xlsx_with_data):
         result = create_chart(xlsx_with_data, "bar", "B1:B3", width=20, height=15)
         assert "Created bar chart" in result
+
+
+# ---------------------------------------------------------------------------
+# CSV read/write
+# ---------------------------------------------------------------------------
+
+class TestCsv:
+    def test_write_and_read_roundtrip(self, tmp_dir):
+        p = f"{tmp_dir}/data.csv"
+        data = [["Name", "Age"], ["Alice", 30], ["Bob", 25]]
+        result = write_csv(p, data)
+        assert "Wrote 3 rows" in result
+        out = read_csv(p)
+        assert out["total_rows"] == 3
+        assert out["returned_rows"] == 3
+        assert out["has_more"] is False
+        assert out["data"][0] == ["Name", "Age"]
+        assert out["data"][1] == ["Alice", 30]
+        assert out["data"][2] == ["Bob", 25]
+
+    def test_append_mode(self, tmp_dir):
+        p = f"{tmp_dir}/append.csv"
+        write_csv(p, [["a", "b"]])
+        result = write_csv(p, [["c", "d"]], append=True)
+        assert "Appended 1 rows" in result
+        out = read_csv(p)
+        assert out["total_rows"] == 2
+        assert out["data"][0] == ["a", "b"]
+        assert out["data"][1] == ["c", "d"]
+
+    def test_chunked_read(self, tmp_dir):
+        p = f"{tmp_dir}/chunked.csv"
+        rows = [[f"r{i}"] for i in range(5)]
+        write_csv(p, rows)
+
+        # Read first 2 rows
+        out = read_csv(p, max_rows=2)
+        assert out["total_rows"] == 5
+        assert out["returned_rows"] == 2
+        assert out["has_more"] is True
+        assert out["next_start_row"] == 3
+        assert out["data"] == [["r0"], ["r1"]]
+
+        # Read next chunk
+        out2 = read_csv(p, start_row=out["next_start_row"], max_rows=2)
+        assert out2["returned_rows"] == 2
+        assert out2["has_more"] is True
+        assert out2["data"] == [["r2"], ["r3"]]
+
+        # Read last chunk
+        out3 = read_csv(p, start_row=out2["next_start_row"], max_rows=2)
+        assert out3["returned_rows"] == 1
+        assert out3["has_more"] is False
+        assert "next_start_row" not in out3
+        assert out3["data"] == [["r4"]]
+
+    def test_read_file_not_found(self, tmp_dir):
+        with pytest.raises(FileNotFoundError):
+            read_csv(f"{tmp_dir}/nope.csv")
+
+    def test_numeric_conversion(self, tmp_dir):
+        p = f"{tmp_dir}/nums.csv"
+        write_csv(p, [["10", "3.14", "", "hello"]])
+        out = read_csv(p)
+        row = out["data"][0]
+        assert row[0] == 10
+        assert row[1] == 3.14
+        assert row[2] is None
+        assert row[3] == "hello"
+
+    def test_empty_file(self, tmp_dir):
+        p = f"{tmp_dir}/empty.csv"
+        write_csv(p, [])
+        out = read_csv(p)
+        assert out["total_rows"] == 0
+        assert out["data"] == []
+        assert out["has_more"] is False
+
+    def test_write_creates_parent_dirs(self, tmp_dir):
+        p = f"{tmp_dir}/a/b/c/nested.csv"
+        result = write_csv(p, [["x"]])
+        assert "Wrote" in result
+        assert Path(p).exists()

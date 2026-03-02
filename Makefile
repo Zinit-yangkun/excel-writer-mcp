@@ -4,4 +4,13 @@ test:
 test-cov:
 	uv run pytest --cov --cov-report=term-missing
 
-.PHONY: test test-cov
+clean:
+	rm -rf dist/
+
+build: clean
+	uv build
+
+publish: build
+	uv publish
+
+.PHONY: test test-cov clean build publish
