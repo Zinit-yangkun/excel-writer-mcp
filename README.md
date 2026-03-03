@@ -34,7 +34,8 @@ MCP server for writing Excel files (.xlsx / .xlsm) based on [openpyxl](https://o
 | `modify_rows_columns` | Insert or delete rows/columns                                                              |
 | `merge_cells`         | Merge or unmerge a range of cells                                                          |
 | `format_cells`        | Apply formatting: font, color, alignment, borders, number format, column width, row height |
-| `create_chart`        | Create a chart (bar, line, or pie)                                                         |
+| `write_csv`           | Write a 2D array to a CSV file (supports append mode)                                      |
+| `read_csv`            | Read CSV with automatic pagination for large files                                         |
 
 ## .xlsm handling
 

@@ -16,7 +16,6 @@ _get_ws = _srv._get_ws
 
 # Tools are FunctionTool wrappers — unwrap via .fn
 copy_file = _srv.copy_file.fn
-create_chart = _srv.create_chart.fn
 create_workbook = _srv.create_workbook.fn
 format_cells = _srv.format_cells.fn
 get_workbook_info = _srv.get_workbook_info.fn
@@ -100,10 +99,10 @@ class TestHelpers:
         assert ws.title == "Sheet1"
         wb.close()
 
-    def test_get_ws_returns_active_when_name_missing(self, xlsx_path):
+    def test_get_ws_raises_when_name_not_found(self, xlsx_path):
         wb = _load_workbook(xlsx_path)
-        ws = _get_ws(wb, "NonExistent")
-        assert ws == wb.active
+        with pytest.raises(KeyError, match="NonExistent"):
+            _get_ws(wb, "NonExistent")
         wb.close()
 
     def test_get_ws_returns_active_when_none(self, xlsx_path):
@@ -128,8 +127,8 @@ class TestCreateWorkbook:
 
     def test_create_xlsm_rejected(self, tmp_dir):
         p = f"{tmp_dir}/new.xlsm"
-        result = create_workbook(p)
-        assert "Error" in result
+        with pytest.raises(ValueError, match="Cannot create .xlsm from scratch"):
+            create_workbook(p)
 
     def test_auto_add_xlsx_extension(self, tmp_dir):
         p = f"{tmp_dir}/noext"
@@ -157,15 +156,14 @@ class TestCopyFile:
         assert Path(dest).exists()
 
     def test_copy_source_not_found(self, tmp_dir):
-        result = copy_file(f"{tmp_dir}/nope.xlsx", f"{tmp_dir}/dest.xlsx")
-        assert "Error" in result
+        with pytest.raises(FileNotFoundError, match="Source file not found"):
+            copy_file(f"{tmp_dir}/nope.xlsx", f"{tmp_dir}/dest.xlsx")
 
     def test_copy_dest_exists(self, xlsx_path, tmp_dir):
         dest = f"{tmp_dir}/dup.xlsx"
         Path(dest).touch()
-        result = copy_file(xlsx_path, dest)
-        assert "Error" in result
-        assert "Will not overwrite" in result
+        with pytest.raises(FileExistsError, match="Will not overwrite"):
+            copy_file(xlsx_path, dest)
 
     def test_copy_creates_parent_dirs(self, xlsx_path, tmp_dir):
         dest = f"{tmp_dir}/x/y/z/copy.xlsx"
@@ -213,8 +211,8 @@ class TestManageSheets:
         wb.close()
 
     def test_create_duplicate_sheet(self, xlsx_path):
-        result = manage_sheets(xlsx_path, "create", "Sheet1")
-        assert "Error" in result
+        with pytest.raises(ValueError, match="already exists"):
+            manage_sheets(xlsx_path, "create", "Sheet1")
 
     def test_delete_sheet(self, xlsx_path):
         manage_sheets(xlsx_path, "create", "ToDelete")
@@ -225,13 +223,12 @@ class TestManageSheets:
         wb.close()
 
     def test_delete_nonexistent_sheet(self, xlsx_path):
-        result = manage_sheets(xlsx_path, "delete", "NoSuch")
-        assert "Error" in result
+        with pytest.raises(KeyError, match="not found"):
+            manage_sheets(xlsx_path, "delete", "NoSuch")
 
     def test_delete_only_sheet(self, xlsx_path):
-        result = manage_sheets(xlsx_path, "delete", "Sheet1")
-        assert "Error" in result
-        assert "only sheet" in result
+        with pytest.raises(ValueError, match="only sheet"):
+            manage_sheets(xlsx_path, "delete", "Sheet1")
 
     def test_rename_sheet(self, xlsx_path):
         result = manage_sheets(xlsx_path, "rename", "Sheet1", new_name="Renamed")
@@ -241,16 +238,16 @@ class TestManageSheets:
         wb.close()
 
     def test_rename_nonexistent_sheet(self, xlsx_path):
-        result = manage_sheets(xlsx_path, "rename", "NoSuch", new_name="X")
-        assert "Error" in result
+        with pytest.raises(KeyError, match="not found"):
+            manage_sheets(xlsx_path, "rename", "NoSuch", new_name="X")
 
     def test_rename_without_new_name(self, xlsx_path):
-        result = manage_sheets(xlsx_path, "rename", "Sheet1")
-        assert "Error" in result
+        with pytest.raises(ValueError, match="new_name is required"):
+            manage_sheets(xlsx_path, "rename", "Sheet1")
 
     def test_unknown_action(self, xlsx_path):
-        result = manage_sheets(xlsx_path, "unknown", "Sheet1")
-        assert "Error" in result
+        with pytest.raises(ValueError, match="Unknown action"):
+            manage_sheets(xlsx_path, "unknown", "Sheet1")
 
 
 # ---------------------------------------------------------------------------
@@ -304,8 +301,8 @@ class TestWriteData:
 
     def test_write_xlsm_must_exist(self, tmp_dir):
         p = f"{tmp_dir}/no.xlsm"
-        result = write_data(p, data=[["A"]])
-        assert "Error" in result
+        with pytest.raises(ValueError, match=".xlsm file must exist"):
+            write_data(p, data=[["A"]])
 
     def test_write_auto_fit_width(self, xlsx_path):
         result = write_data(xlsx_path, data=[["LongColumnHeader", "Short"]], auto_fit_width=True)
@@ -353,8 +350,8 @@ class TestWriteCells:
         wb.close()
 
     def test_write_cells_file_not_found(self, tmp_dir):
-        result = write_cells(f"{tmp_dir}/nope.xlsx", cells={"A1": 1})
-        assert "Error" in result
+        with pytest.raises(FileNotFoundError, match="File not found"):
+            write_cells(f"{tmp_dir}/nope.xlsx", cells={"A1": 1})
 
     def test_write_cells_with_formula(self, xlsx_path):
         write_cells(xlsx_path, cells={"A1": 10, "A2": "=A1*2"})
@@ -398,8 +395,8 @@ class TestModifyRowsColumns:
         wb.close()
 
     def test_unknown_action(self, xlsx_with_data):
-        result = modify_rows_columns(xlsx_with_data, "bad_action", 1)
-        assert "Error" in result
+        with pytest.raises(ValueError, match="Unknown action"):
+            modify_rows_columns(xlsx_with_data, "bad_action", 1)
 
 
 # ---------------------------------------------------------------------------
@@ -482,39 +479,6 @@ class TestFormatCells:
         assert ws.row_dimensions[1].height == 30
         assert ws.row_dimensions[2].height == 30
         wb.close()
-
-
-# ---------------------------------------------------------------------------
-# create_chart
-# ---------------------------------------------------------------------------
-
-class TestCreateChart:
-    def test_bar_chart(self, xlsx_with_data):
-        result = create_chart(xlsx_with_data, "bar", "B1:B3", title="Ages")
-        assert "Created bar chart" in result
-
-    def test_line_chart(self, xlsx_with_data):
-        result = create_chart(xlsx_with_data, "line", "C1:C3", target_cell="F1")
-        assert "Created line chart" in result
-
-    def test_pie_chart(self, xlsx_with_data):
-        result = create_chart(xlsx_with_data, "pie", "B1:B3")
-        assert "Created pie chart" in result
-
-    def test_chart_with_categories(self, xlsx_with_data):
-        result = create_chart(
-            xlsx_with_data, "bar", "B1:B3",
-            categories_range="A1:A3", title="By Name",
-        )
-        assert "Created bar chart" in result
-
-    def test_unsupported_chart_type(self, xlsx_with_data):
-        result = create_chart(xlsx_with_data, "scatter", "B1:B3")
-        assert "Error" in result
-
-    def test_chart_custom_size(self, xlsx_with_data):
-        result = create_chart(xlsx_with_data, "bar", "B1:B3", width=20, height=15)
-        assert "Created bar chart" in result
 
 
 # ---------------------------------------------------------------------------
