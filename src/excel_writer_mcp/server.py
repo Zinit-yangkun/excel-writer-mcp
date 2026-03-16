@@ -287,6 +287,16 @@ def write_cells(
     try:
         ws = _get_ws(wb, sheet_name)
         for cell_addr, value in cells.items():
+            cell = ws[cell_addr]
+            if hasattr(cell, "value") and type(cell).__name__ == "MergedCell":
+                # Find which merged range this cell belongs to
+                for merged_range in ws.merged_cells.ranges:
+                    if cell.coordinate in merged_range:
+                        tl = merged_range.start_cell.coordinate
+                        raise ValueError(
+                            f"Cell '{cell_addr}' is part of merged range {merged_range}. "
+                            f"Write to the top-left cell '{tl}' instead."
+                        )
             ws[cell_addr] = value
         _save_workbook(wb, path)
     finally:

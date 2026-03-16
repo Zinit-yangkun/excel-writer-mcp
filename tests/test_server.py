@@ -359,6 +359,29 @@ class TestWriteCells:
         assert wb.active["A2"].value == "=A1*2"
         wb.close()
 
+    def test_write_to_merged_cell_raises(self, xlsx_path):
+        """Writing to a non-top-left cell in a merged range should raise with a helpful message."""
+        wb = openpyxl.load_workbook(xlsx_path)
+        wb.active.merge_cells("A1:C1")
+        wb.save(xlsx_path)
+        wb.close()
+
+        with pytest.raises(ValueError, match=r"Cell 'B1' is part of merged range A1:C1.*top-left cell 'A1'"):
+            write_cells(xlsx_path, cells={"B1": "bad"})
+
+    def test_write_to_top_left_of_merged_range_succeeds(self, xlsx_path):
+        """Writing to the top-left cell of a merged range should work fine."""
+        wb = openpyxl.load_workbook(xlsx_path)
+        wb.active.merge_cells("A1:C1")
+        wb.save(xlsx_path)
+        wb.close()
+
+        result = write_cells(xlsx_path, cells={"A1": "header"})
+        assert "Wrote 1 cell(s)" in result
+        wb = openpyxl.load_workbook(xlsx_path)
+        assert wb.active["A1"].value == "header"
+        wb.close()
+
 
 # ---------------------------------------------------------------------------
 # modify_rows_columns
